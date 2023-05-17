@@ -57,12 +57,16 @@ class ACModel(nn.Module, torch_ac.RecurrentACModel):
         self.actor = nn.Sequential(
             nn.Linear(self.embedding_size, 64),
             nn.Tanh(),
+            nn.Linear(64, 64),
+            nn.Tanh(),
             nn.Linear(64, action_space.n)
         )
 
         # Define critic's model
         self.critic = nn.Sequential(
             nn.Linear(self.embedding_size, 64),
+            nn.Tanh(),
+            nn.Linear(64, 64),
             nn.Tanh(),
             nn.Linear(64, 1)
         )

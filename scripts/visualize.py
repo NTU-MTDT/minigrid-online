@@ -4,6 +4,7 @@ import numpy
 import utils
 from utils import device
 
+from tqdm import tqdm
 
 # Parse arguments
 
@@ -12,6 +13,8 @@ parser.add_argument("--env", required=True,
                     help="name of the environment to be run (REQUIRED)")
 parser.add_argument("--model", required=True,
                     help="name of the trained model (REQUIRED)")
+parser.add_argument("--noise", type=float, default=0.0,
+                    help="noise prob (default: 0.0)")
 parser.add_argument("--seed", type=int, default=0,
                     help="random seed (default: 0)")
 parser.add_argument("--shift", type=int, default=0,
@@ -41,7 +44,7 @@ print(f"Device: {device}\n")
 
 # Load environment
 
-env = utils.make_env(args.env, args.seed, render_mode="human")
+env = utils.make_env(args.env, args.seed, render_mode="rgb_array", noise_prob=args.noise)
 for _ in range(args.shift):
     env.reset()
 print("Environment loaded\n")
@@ -57,29 +60,52 @@ print("Agent loaded\n")
 
 if args.gif:
     from array2gif import write_gif
+    
+    from matplotlib import animation
+    import matplotlib.pyplot as plt
+
+
+    def display_frames_as_gif(frames, name="output.gif"):
+        patch = plt.imshow(frames[0])
+        plt.axis("off")
+
+        def animate(i):
+            patch.set_data(frames[i])
+
+        anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frames), interval=1)
+        anim.save(name, fps=10)
 
     frames = []
 
 # Create a window to view the environment
 env.render()
 
-for episode in range(args.episodes):
+returns = []
+
+for episode in tqdm(range(args.episodes)):
     obs, _ = env.reset()
 
+    returnn = 0
     while True:
-        env.render()
+        frame = env.render()
         if args.gif:
-            frames.append(numpy.moveaxis(env.get_frame(), 2, 0))
+            # frames.append(numpy.moveaxis(env.get_frame(), 2, 0))
+            frames.append(frame)
 
         action = agent.get_action(obs)
         obs, reward, terminated, truncated, _ = env.step(action)
+        returnn += reward
         done = terminated | truncated
         agent.analyze_feedback(reward, done)
 
         if done:
             break
+    frames = frames + [frames[-1]] * 10
+    returns.append(returnn)
+print("Return: ", returns)
 
 if args.gif:
-    print("Saving gif... ", end="")
-    write_gif(numpy.array(frames), args.gif+".gif", fps=1/args.pause)
+    print("Saving gif... ")
+    # write_gif(numpy.array(frames), args.gif+".gif", fps=1/args.pause)
+    display_frames_as_gif(frames, name=f"{args.gif}.gif")
     print("Done.")

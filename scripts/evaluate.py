@@ -6,6 +6,7 @@ from torch_ac.utils.penv import ParallelEnv
 import utils
 from utils import device
 
+from tqdm import tqdm
 
 # Parse arguments
 
@@ -14,12 +15,14 @@ parser.add_argument("--env", required=True,
                     help="name of the environment (REQUIRED)")
 parser.add_argument("--model", required=True,
                     help="name of the trained model (REQUIRED)")
+parser.add_argument("--noise", type=float, default=0.0,
+                    help="noise prob (default: 0.0)")
 parser.add_argument("--episodes", type=int, default=100,
                     help="number of episodes of evaluation (default: 100)")
 parser.add_argument("--seed", type=int, default=0,
                     help="random seed (default: 0)")
-parser.add_argument("--procs", type=int, default=16,
-                    help="number of processes (default: 16)")
+parser.add_argument("--procs", type=int, default=40,
+                    help="number of processes (default: 40)")
 parser.add_argument("--argmax", action="store_true", default=False,
                     help="action with highest probability is selected")
 parser.add_argument("--worst-episodes-to-show", type=int, default=10,
@@ -44,7 +47,7 @@ if __name__ == "__main__":
 
     envs = []
     for i in range(args.procs):
-        env = utils.make_env(args.env, args.seed + 10000 * i)
+        env = utils.make_env(args.env, args.seed + 10000 * i, noise_prob=args.noise, max_steps=100)
         envs.append(env)
     env = ParallelEnv(envs)
     print("Environments loaded\n")
@@ -71,6 +74,7 @@ if __name__ == "__main__":
     log_episode_return = torch.zeros(args.procs, device=device)
     log_episode_num_frames = torch.zeros(args.procs, device=device)
 
+    pbar = tqdm(total=args.episodes)
     while log_done_counter < args.episodes:
         actions = agent.get_actions(obss)
         obss, rewards, terminateds, truncateds, _ = env.step(actions)
@@ -83,6 +87,7 @@ if __name__ == "__main__":
         for i, done in enumerate(dones):
             if done:
                 log_done_counter += 1
+                pbar.update(1)
                 logs["return_per_episode"].append(log_episode_return[i].item())
                 logs["num_frames_per_episode"].append(log_episode_num_frames[i].item())
 
@@ -90,6 +95,7 @@ if __name__ == "__main__":
         log_episode_return *= mask
         log_episode_num_frames *= mask
 
+    pbar.close()
     end_time = time.time()
 
     # Print logs
