@@ -1,7 +1,9 @@
 env=$1
 mode=$2
 
-noise=0.05
+noise=0.00
+
+export CUDA_VISIBLE_DEVICES=0
 
 if [ $mode == "train" ]; then
     echo "Training $env"

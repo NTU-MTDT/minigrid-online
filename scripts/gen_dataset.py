@@ -110,14 +110,16 @@ data = {
         "mean": np.mean(returns),
         "std": np.std(returns),
     },
-    "trajectories": sorted(trajectories, key=lambda x: x["return"], reverse=True),
+    "trajectories": sorted(trajectories, key=lambda x: (x["return"], -x["timesteps"]), reverse=True),
 }
 
 with open(f"dataset/{output_file}", "w") as f:
     json.dump(data, f, indent=4)
 
-plt = sns.displot(returns, bins=20, kde=True, binrange=(0, 1))
+plt = sns.displot(returns, bins=20, kde=True)
 plt.fig.savefig(f"dataset/returns_{env_name}_{int(noise_prob*100)}_{num_episodes}.png")
 
-plt = sns.displot(timesteps, kde=True, binrange=(0, 512))
-plt.fig.savefig(f"dataset/timesteps_{env_name}_{int(noise_prob*100)}_{num_episodes}.png")
+plt = sns.displot(timesteps, bins=20, kde=True, binrange=(0, 100))
+plt.fig.savefig(
+    f"dataset/timesteps_{env_name}_{int(noise_prob*100)}_{num_episodes}.png"
+)
